@@ -1,0 +1,1035 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "import re\n",
+        "import nltk"
+      ],
+      "metadata": {
+        "id": "sIQNydSaK4LZ"
+      },
+      "execution_count": 3,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from nltk.corpus import stopwords\n",
+        "from nltk.stem.porter import PorterStemmer\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.feature_extraction.text import CountVectorizer\n",
+        "from sklearn.ensemble import RandomForestClassifier\n",
+        "from sklearn.metrics import accuracy_score, precision_score, recall_score\n",
+        "from sklearn.metrics import confusion_matrix, classification_report"
+      ],
+      "metadata": {
+        "id": "L1No81EpK-Rc"
+      },
+      "execution_count": 6,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import matplotlib.pyplot as plt\n",
+        "import seaborn as sns\n",
+        "print(\"Libraries imported successfully!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Bic5s9BzM6rY",
+        "outputId": "6e0d6191-b0eb-422b-91b7-be982af80677"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Libraries imported successfully!\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from google.colab import files\n",
+        "\n",
+        "uploaded = files.upload()\n",
+        "\n",
+        "for fn in uploaded.keys():\n",
+        "  print(f'User uploaded file \"{fn}\" with length {len(uploaded[fn])} bytes')"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 90
+        },
+        "id": "-C0E09_POWEz",
+        "outputId": "a1d95396-959d-4875-df1b-97a1df998e5f"
+      },
+      "execution_count": 11,
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.HTML object>"
+            ],
+            "text/html": [
+              "\n",
+              "     <input type=\"file\" id=\"files-752dbc66-620f-43ba-8c76-f6b1187801fc\" name=\"files[]\" multiple disabled\n",
+              "        style=\"border:none\" />\n",
+              "     <output id=\"result-752dbc66-620f-43ba-8c76-f6b1187801fc\">\n",
+              "      Upload widget is only available when the cell has been executed in the\n",
+              "      current browser session. Please rerun this cell to enable.\n",
+              "      </output>\n",
+              "      <script>// Copyright 2017 Google LLC\n",
+              "//\n",
+              "// Licensed under the Apache License, Version 2.0 (the \"License\");\n",
+              "// you may not use this file except in compliance with the License.\n",
+              "// You may obtain a copy of the License at\n",
+              "//\n",
+              "//      http://www.apache.org/licenses/LICENSE-2.0\n",
+              "//\n",
+              "// Unless required by applicable law or agreed to in writing, software\n",
+              "// distributed under the License is distributed on an \"AS IS\" BASIS,\n",
+              "// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n",
+              "// See the License for the specific language governing permissions and\n",
+              "// limitations under the License.\n",
+              "\n",
+              "/**\n",
+              " * @fileoverview Helpers for google.colab Python module.\n",
+              " */\n",
+              "(function(scope) {\n",
+              "function span(text, styleAttributes = {}) {\n",
+              "  const element = document.createElement('span');\n",
+              "  element.textContent = text;\n",
+              "  for (const key of Object.keys(styleAttributes)) {\n",
+              "    element.style[key] = styleAttributes[key];\n",
+              "  }\n",
+              "  return element;\n",
+              "}\n",
+              "\n",
+              "// Max number of bytes which will be uploaded at a time.\n",
+              "const MAX_PAYLOAD_SIZE = 100 * 1024;\n",
+              "\n",
+              "function _uploadFiles(inputId, outputId) {\n",
+              "  const steps = uploadFilesStep(inputId, outputId);\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  // Cache steps on the outputElement to make it available for the next call\n",
+              "  // to uploadFilesContinue from Python.\n",
+              "  outputElement.steps = steps;\n",
+              "\n",
+              "  return _uploadFilesContinue(outputId);\n",
+              "}\n",
+              "\n",
+              "// This is roughly an async generator (not supported in the browser yet),\n",
+              "// where there are multiple asynchronous steps and the Python side is going\n",
+              "// to poll for completion of each step.\n",
+              "// This uses a Promise to block the python side on completion of each step,\n",
+              "// then passes the result of the previous step as the input to the next step.\n",
+              "function _uploadFilesContinue(outputId) {\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  const steps = outputElement.steps;\n",
+              "\n",
+              "  const next = steps.next(outputElement.lastPromiseValue);\n",
+              "  return Promise.resolve(next.value.promise).then((value) => {\n",
+              "    // Cache the last promise value to make it available to the next\n",
+              "    // step of the generator.\n",
+              "    outputElement.lastPromiseValue = value;\n",
+              "    return next.value.response;\n",
+              "  });\n",
+              "}\n",
+              "\n",
+              "/**\n",
+              " * Generator function which is called between each async step of the upload\n",
+              " * process.\n",
+              " * @param {string} inputId Element ID of the input file picker element.\n",
+              " * @param {string} outputId Element ID of the output display.\n",
+              " * @return {!Iterable<!Object>} Iterable of next steps.\n",
+              " */\n",
+              "function* uploadFilesStep(inputId, outputId) {\n",
+              "  const inputElement = document.getElementById(inputId);\n",
+              "  inputElement.disabled = false;\n",
+              "\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  outputElement.innerHTML = '';\n",
+              "\n",
+              "  const pickedPromise = new Promise((resolve) => {\n",
+              "    inputElement.addEventListener('change', (e) => {\n",
+              "      resolve(e.target.files);\n",
+              "    });\n",
+              "  });\n",
+              "\n",
+              "  const cancel = document.createElement('button');\n",
+              "  inputElement.parentElement.appendChild(cancel);\n",
+              "  cancel.textContent = 'Cancel upload';\n",
+              "  const cancelPromise = new Promise((resolve) => {\n",
+              "    cancel.onclick = () => {\n",
+              "      resolve(null);\n",
+              "    };\n",
+              "  });\n",
+              "\n",
+              "  // Wait for the user to pick the files.\n",
+              "  const files = yield {\n",
+              "    promise: Promise.race([pickedPromise, cancelPromise]),\n",
+              "    response: {\n",
+              "      action: 'starting',\n",
+              "    }\n",
+              "  };\n",
+              "\n",
+              "  cancel.remove();\n",
+              "\n",
+              "  // Disable the input element since further picks are not allowed.\n",
+              "  inputElement.disabled = true;\n",
+              "\n",
+              "  if (!files) {\n",
+              "    return {\n",
+              "      response: {\n",
+              "        action: 'complete',\n",
+              "      }\n",
+              "    };\n",
+              "  }\n",
+              "\n",
+              "  for (const file of files) {\n",
+              "    const li = document.createElement('li');\n",
+              "    li.append(span(file.name, {fontWeight: 'bold'}));\n",
+              "    li.append(span(\n",
+              "        `(${file.type || 'n/a'}) - ${file.size} bytes, ` +\n",
+              "        `last modified: ${\n",
+              "            file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() :\n",
+              "                                    'n/a'} - `));\n",
+              "    const percent = span('0% done');\n",
+              "    li.appendChild(percent);\n",
+              "\n",
+              "    outputElement.appendChild(li);\n",
+              "\n",
+              "    const fileDataPromise = new Promise((resolve) => {\n",
+              "      const reader = new FileReader();\n",
+              "      reader.onload = (e) => {\n",
+              "        resolve(e.target.result);\n",
+              "      };\n",
+              "      reader.readAsArrayBuffer(file);\n",
+              "    });\n",
+              "    // Wait for the data to be ready.\n",
+              "    let fileData = yield {\n",
+              "      promise: fileDataPromise,\n",
+              "      response: {\n",
+              "        action: 'continue',\n",
+              "      }\n",
+              "    };\n",
+              "\n",
+              "    // Use a chunked sending to avoid message size limits. See b/62115660.\n",
+              "    let position = 0;\n",
+              "    do {\n",
+              "      const length = Math.min(fileData.byteLength - position, MAX_PAYLOAD_SIZE);\n",
+              "      const chunk = new Uint8Array(fileData, position, length);\n",
+              "      position += length;\n",
+              "\n",
+              "      const base64 = btoa(String.fromCharCode.apply(null, chunk));\n",
+              "      yield {\n",
+              "        response: {\n",
+              "          action: 'append',\n",
+              "          file: file.name,\n",
+              "          data: base64,\n",
+              "        },\n",
+              "      };\n",
+              "\n",
+              "      let percentDone = fileData.byteLength === 0 ?\n",
+              "          100 :\n",
+              "          Math.round((position / fileData.byteLength) * 100);\n",
+              "      percent.textContent = `${percentDone}% done`;\n",
+              "\n",
+              "    } while (position < fileData.byteLength);\n",
+              "  }\n",
+              "\n",
+              "  // All done.\n",
+              "  yield {\n",
+              "    response: {\n",
+              "      action: 'complete',\n",
+              "    }\n",
+              "  };\n",
+              "}\n",
+              "\n",
+              "scope.google = scope.google || {};\n",
+              "scope.google.colab = scope.google.colab || {};\n",
+              "scope.google.colab._files = {\n",
+              "  _uploadFiles,\n",
+              "  _uploadFilesContinue,\n",
+              "};\n",
+              "})(self);\n",
+              "</script> "
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Saving Restaurant_Reviews.tsv to Restaurant_Reviews.tsv\n",
+            "User uploaded file \"Restaurant_Reviews.tsv\" with length 62347 bytes\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = pd.read_csv(\"Restaurant_Reviews.tsv\", delimiter=\"\\t\", quoting=3)\n",
+        "print(\"Dataset loaded successfully!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "qSo4_MHDOplz",
+        "outputId": "9bbe7fee-dc2d-4d0c-9fe5-e1142588afcb"
+      },
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Dataset loaded successfully!\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"First 5 rows:\")\n",
+        "display(df.head())\n",
+        "print(\"\\nDataset Shape:\", df.shape)\n",
+        "print(\"\\nColumn Names:\", df.columns)\n",
+        "print(\"\\nDataset Information:\")\n",
+        "df.info()\n",
+        "print(\"\\nSentiment Distribution:\")\n",
+        "print(df[\"Liked\"].value_counts())"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 588
+        },
+        "id": "bl5kUrRPOzek",
+        "outputId": "f36d20b5-7894-45af-c28a-d83c3e0c69bf"
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "First 5 rows:\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "                                              Review  Liked\n",
+              "0                           Wow... Loved this place.      1\n",
+              "1                                 Crust is not good.      0\n",
+              "2          Not tasty and the texture was just nasty.      0\n",
+              "3  Stopped by during the late May bank holiday of...      1\n",
+              "4  The selection on the menu was great and so wer...      1"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-02938182-dd40-46fd-b80d-85b854acecde\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Review</th>\n",
+              "      <th>Liked</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>Wow... Loved this place.</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>Crust is not good.</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>Not tasty and the texture was just nasty.</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>Stopped by during the late May bank holiday of...</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>The selection on the menu was great and so wer...</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-02938182-dd40-46fd-b80d-85b854acecde')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-02938182-dd40-46fd-b80d-85b854acecde button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-02938182-dd40-46fd-b80d-85b854acecde');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "summary": "{\n  \"name\": \"print(df[\\\"Liked\\\"]\",\n  \"rows\": 5,\n  \"fields\": [\n    {\n      \"column\": \"Review\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 5,\n        \"samples\": [\n          \"Crust is not good.\",\n          \"The selection on the menu was great and so were the prices.\",\n          \"Not tasty and the texture was just nasty.\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"Liked\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Dataset Shape: (1000, 2)\n",
+            "\n",
+            "Column Names: Index(['Review', 'Liked'], dtype='object')\n",
+            "\n",
+            "Dataset Information:\n",
+            "<class 'pandas.core.frame.DataFrame'>\n",
+            "RangeIndex: 1000 entries, 0 to 999\n",
+            "Data columns (total 2 columns):\n",
+            " #   Column  Non-Null Count  Dtype \n",
+            "---  ------  --------------  ----- \n",
+            " 0   Review  1000 non-null   object\n",
+            " 1   Liked   1000 non-null   int64 \n",
+            "dtypes: int64(1), object(1)\n",
+            "memory usage: 15.8+ KB\n",
+            "\n",
+            "Sentiment Distribution:\n",
+            "Liked\n",
+            "1    500\n",
+            "0    500\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "nltk.download(\"stopwords\")\n",
+        "print(\"Stopwords downloaded successfully!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "tO1_nXFuPY9A",
+        "outputId": "52ab1b3e-e724-4387-c740-3536f2f89f1d"
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Stopwords downloaded successfully!\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "[nltk_data] Downloading package stopwords to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping corpora/stopwords.zip.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "corpus = []\n",
+        "ps = PorterStemmer()\n",
+        "english_stopwords = set(stopwords.words(\"english\"))\n",
+        "for i in range(len(df)):\n",
+        "    review = re.sub(\"[^a-zA-Z]\", \" \", df[\"Review\"].iloc[i]).lower()\n",
+        "    words = review.split()\n",
+        "    words = [w for w in words if w not in english_stopwords]\n",
+        "    words = [ps.stem(w) for w in words]\n",
+        "    corpus.append(\" \".join(words))\n",
+        "print(\"Preprocessing completed!\")\n",
+        "print(\"\\nFirst 10 processed reviews:\")\n",
+        "print(corpus[:10])"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "92AOUNvwPwJh",
+        "outputId": "1d8572fa-3c74-41aa-d648-b241e5378c18"
+      },
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Preprocessing completed!\n",
+            "\n",
+            "First 10 processed reviews:\n",
+            "['wow love place', 'crust good', 'tasti textur nasti', 'stop late may bank holiday rick steve recommend love', 'select menu great price', 'get angri want damn pho', 'honeslti tast fresh', 'potato like rubber could tell made ahead time kept warmer', 'fri great', 'great touch']\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "cv = CountVectorizer(max_features=1500)\n",
+        "X = cv.fit_transform(corpus).toarray()\n",
+        "y = df.iloc[:, 1].values\n",
+        "print(\"Feature matrix shape:\", X.shape)\n",
+        "print(\"Target shape:\", y.shape)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "rT4F2yzkQGC2",
+        "outputId": "7bd6132e-3ac6-4f6e-ad20-b925df1143d8"
+      },
+      "execution_count": 22,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Feature matrix shape: (1000, 1500)\n",
+            "Target shape: (1000,)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "X_train, X_test, y_train, y_test = train_test_split( X, y, test_size=0.20, random_state=0 )\n",
+        "print(\"Training data shape:\", X_train.shape)\n",
+        "print(\"Testing data shape:\", X_test.shape), X_test.shape"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "2-6c9YYjQQ0K",
+        "outputId": "f262033b-c30f-4577-db3a-46d98da0fa46"
+      },
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Training data shape: (800, 1500)\n",
+            "Testing data shape: (200, 1500)\n"
+          ]
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(None, (200, 1500))"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 23
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "model = RandomForestClassifier( n_estimators=35, random_state=42 )\n",
+        "model.fit(X_train, y_train)\n",
+        "print(\"Random Forest model trained successfully!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "oUWWPIb-QWUc",
+        "outputId": "93a5b03f-71f4-4015-df0e-514ab3d331be"
+      },
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Random Forest model trained successfully!\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "model_score = model.score(X_test, y_test)\n",
+        "print(\"Model Accuracy:\", round(model_score * 100, 2), \"%\")\n",
+        "y_pred = model.predict(X_test)\n",
+        "print(\"Predictions completed!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "i8QxXbyEQfmn",
+        "outputId": "6255dab5-1b6f-44a3-c6bf-edcf9d10dd7d"
+      },
+      "execution_count": 28,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Model Accuracy: 73.0 %\n",
+            "Predictions completed!\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "score1 = accuracy_score(y_test, y_pred)\n",
+        "score2 = precision_score(y_test, y_pred, zero_division=0)\n",
+        "score3 = recall_score(y_test, y_pred, zero_division=0)\n",
+        "print(\"---- Scores ----\")\n",
+        "print(\"Accuracy:\", round(score1 * 100, 2), \"%\")\n",
+        "print(\"Precision:\", round(score2, 2))\n",
+        "print(\"Recall:\", round(score3, 2))"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "lj9xzWFaRI4k",
+        "outputId": "ba1757b9-befd-4658-fea7-a67d4d3e8f39"
+      },
+      "execution_count": 34,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "---- Scores ----\n",
+            "Accuracy: 73.0 %\n",
+            "Precision: 0.84\n",
+            "Recall: 0.59\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"Classification Report:\")\n",
+        "print(classification_report( y_test, y_pred, zero_division=0 ))"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "pxF6UpoHRO1R",
+        "outputId": "878f42a8-1e0a-43d3-fff4-f7558f290243"
+      },
+      "execution_count": 35,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Classification Report:\n",
+            "              precision    recall  f1-score   support\n",
+            "\n",
+            "           0       0.67      0.88      0.76        97\n",
+            "           1       0.84      0.59      0.69       103\n",
+            "\n",
+            "    accuracy                           0.73       200\n",
+            "   macro avg       0.75      0.73      0.73       200\n",
+            "weighted avg       0.75      0.73      0.73       200\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "cm = confusion_matrix(y_test, y_pred)\n",
+        "print(\"Confusion Matrix:\")\n",
+        "print(cm)\n",
+        "\n",
+        "plt.figure(figsize=(5, 5))\n",
+        "sns.heatmap(\n",
+        "    cm,\n",
+        "    annot=True,\n",
+        "    fmt=\"d\",\n",
+        "    cmap=\"YlGnBu\",\n",
+        "    xticklabels=[\"Negative\", \"Positive\"],\n",
+        "    yticklabels=[\"Negative\", \"Positive\"]\n",
+        ")\n",
+        "plt.xlabel(\"Predicted Values\")\n",
+        "plt.ylabel(\"Actual Values\")\n",
+        "plt.title(\"Random Forest Confusion Matrix\")\n",
+        "plt.show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 539
+        },
+        "id": "BmNmYwgwRl7l",
+        "outputId": "33943cf6-b6e6-43f7-ee7d-c43242655171"
+      },
+      "execution_count": 37,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Confusion Matrix:\n",
+            "[[85 12]\n",
+            " [42 61]]\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 500x500 with 2 Axes>"
+            ],
+            "image/png": "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\n"
+          },
+          "metadata": {}
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "best_accuracy = 0\n",
+        "n_estimators_val = 5\n",
+        "print(\"Testing different n_estimators values...\\n\")\n",
+        "\n",
+        "for i in np.arange(1, 30, 2):\n",
+        "    temp_model = RandomForestClassifier(\n",
+        "        n_estimators=i,\n",
+        "        random_state=42 # random_state should be part of the constructor parameters\n",
+        "    )\n",
+        "    temp_model.fit(X_train, y_train)\n",
+        "    temp_pred = temp_model.predict(X_test)\n",
+        "    score = accuracy_score(y_test, temp_pred)\n",
+        "    print(\"n_estimators =\", i, \"Accuracy =\", round(score * 100, 2), \"%\")\n",
+        "\n",
+        "    if score > best_accuracy:\n",
+        "        best_accuracy = score\n",
+        "        n_estimators_val = i\n",
+        "\n",
+        "print(\"\\nBest accuracy:\", round(best_accuracy * 100, 2), \"%\", \"with n_estimators =\", n_estimators_val)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "d5MVQzuuRwe_",
+        "outputId": "cadfcf8e-086e-4e4f-ea4f-b05c30ab3a50"
+      },
+      "execution_count": 39,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Testing different n_estimators values...\n",
+            "\n",
+            "n_estimators = 1 Accuracy = 62.0 %\n",
+            "n_estimators = 3 Accuracy = 67.0 %\n",
+            "n_estimators = 5 Accuracy = 71.5 %\n",
+            "n_estimators = 7 Accuracy = 71.0 %\n",
+            "n_estimators = 9 Accuracy = 70.0 %\n",
+            "n_estimators = 11 Accuracy = 72.5 %\n",
+            "n_estimators = 13 Accuracy = 75.0 %\n",
+            "n_estimators = 15 Accuracy = 74.0 %\n",
+            "n_estimators = 17 Accuracy = 74.0 %\n",
+            "n_estimators = 19 Accuracy = 71.5 %\n",
+            "n_estimators = 21 Accuracy = 71.0 %\n",
+            "n_estimators = 23 Accuracy = 71.0 %\n",
+            "n_estimators = 25 Accuracy = 71.0 %\n",
+            "n_estimators = 27 Accuracy = 70.0 %\n",
+            "n_estimators = 29 Accuracy = 71.5 %\n",
+            "\n",
+            "Best accuracy: 75.0 % with n_estimators = 13\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "model = RandomForestClassifier(n_estimators=n_estimators_val, random_state=42)\n",
+        "model.fit(X_train, y_train)\n",
+        "print(\"Optimized Random Forest Model:\")\n",
+        "print(model)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "MMnEjSh7R8AO",
+        "outputId": "efd5590d-b2dd-43f5-d4cf-69a037f94eb4"
+      },
+      "execution_count": 42,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Optimized Random Forest Model:\n",
+            "RandomForestClassifier(n_estimators=np.int64(13), random_state=42)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def predict_sentiment(sample_review):\n",
+        "    review = re.sub(\"[^a-zA-Z]\", \" \", sample_review).lower()\n",
+        "    words = review.split()\n",
+        "    words = [w for w in words if w not in english_stopwords]\n",
+        "    words = [ps.stem(w) for w in words]\n",
+        "    review = \" \".join(words)\n",
+        "    data = cv.transform([review]).toarray()\n",
+        "    return model.predict(data)[0]\n",
+        "\n",
+        "sample_review = \"The food is really good here.\"\n",
+        "prediction = predict_sentiment(sample_review)\n",
+        "\n",
+        "print(\"Review:\", sample_review)\n",
+        "if prediction == 1:\n",
+        "    print(\"This is a POSITIVE review.\")\n",
+        "else:\n",
+        "    print(\"This is a NEGATIVE review!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "x70FwzsoSFYR",
+        "outputId": "ad6ef80a-8be3-4768-8917-76752cd93773"
+      },
+      "execution_count": 44,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Review: The food is really good here.\n",
+            "This is a POSITIVE review.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "sample_review = \"The food was absolutely awful.\"\n",
+        "prediction = predict_sentiment(sample_review)\n",
+        "\n",
+        "print(\"Review:\", sample_review)\n",
+        "if prediction == 1:\n",
+        "    print(\"This is a POSITIVE review.\")\n",
+        "else:\n",
+        "    print(\"This is a NEGATIVE review!\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "KFmq4Fh8SOZV",
+        "outputId": "56009d31-5922-46c8-ced4-4312137570bc"
+      },
+      "execution_count": 46,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Review: The food was absolutely awful.\n",
+            "This is a NEGATIVE review!\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "final_predictions = model.predict(X_test)\n",
+        "accuracy = accuracy_score(y_test, final_predictions)\n",
+        "precision = precision_score(y_test, final_predictions, zero_division=0)\n",
+        "recall = recall_score(y_test, final_predictions, zero_division=0)\n",
+        "\n",
+        "print(\"\\n==========================================\")\n",
+        "print(\" FINAL RANDOM FOREST MODEL PERFORMANCE\")\n",
+        "print(\"==========================================\")\n",
+        "print(\"Accuracy :\", round(accuracy * 100, 2), \"%\")\n",
+        "print(\"Precision:\", round(precision, 2))\n",
+        "print(\"Recall   :\", round(recall, 2))\n",
+        "print(\"Best n_estimators:\", n_estimators_val)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "bAh69FCSSbRM",
+        "outputId": "d9f635bb-ddcb-4242-fb2d-4542449ac1f4"
+      },
+      "execution_count": 49,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "==========================================\n",
+            " FINAL RANDOM FOREST MODEL PERFORMANCE\n",
+            "==========================================\n",
+            "Accuracy : 75.0 %\n",
+            "Precision: 0.84\n",
+            "Recall   : 0.64\n",
+            "Best n_estimators: 13\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
